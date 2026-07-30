@@ -17,6 +17,8 @@ import {
     getDocs
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
+import { SpinFX } from "./js/reward-spin-fx.js";
+
 /* ==========================================================
    CONFIG
 ========================================================== */
@@ -176,6 +178,7 @@ async function init() {
     bindTaskActions();
     setupCanvas();
     drawWheel();
+    SpinFX.init({ sectorCount: state.wheelSectors.length });
 
     observeResize();
     observeConnection();
@@ -312,8 +315,6 @@ function ensureRuntimeNodes() {
             @keyframes rewardSpinLoader { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
             @keyframes rewardToastIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
             @keyframes rewardToastOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(8px); } }
-            @keyframes rewardPopIn { from { opacity: 0; transform: translateY(18px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
-            @keyframes rewardPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
         `;
         document.head.appendChild(style);
     }
@@ -452,7 +453,7 @@ function renderAll() {
 
 function renderSpinInfo() {
     if (dom.availableSpin) {
-        dom.availableSpin.textContent = `🎟️ x${state.spins}`;
+        SpinFX.result({ remainingSpins: state.spins });
     }
 }
 
@@ -461,22 +462,22 @@ function renderSpinButton() {
 
     if (state.spinning) {
         dom.btnSpin.disabled = true;
-        dom.btnSpin.innerHTML = `<span>SPINNING...</span>`;
+        dom.btnSpin.innerHTML = `<span class="btn-shine" aria-hidden="true"></span><span>SPINNING...</span>`;
         return;
     }
 
     if (!state.backendReady) {
         dom.btnSpin.disabled = true;
-        dom.btnSpin.innerHTML = `<span>CONNECTING...</span>`;
+        dom.btnSpin.innerHTML = `<span class="btn-shine" aria-hidden="true"></span><span>CONNECTING...</span>`;
         return;
     }
 
     dom.btnSpin.disabled = false;
 
     if (state.spins > 0) {
-        dom.btnSpin.innerHTML = `<span>SPIN NOW</span>`;
+        dom.btnSpin.innerHTML = `<span class="btn-shine" aria-hidden="true"></span><span>SPIN NOW</span>`;
     } else {
-        dom.btnSpin.innerHTML = `<span>GET MORE SPINS</span>`;
+        dom.btnSpin.innerHTML = `<span class="btn-shine" aria-hidden="true"></span><span>GET MORE SPINS</span>`;
     }
 }
 
@@ -766,28 +767,18 @@ async function animateWheelToSector(index) {
     const start = state.wheelRotation;
     const end = getTargetRotationForSector(index);
 
-    return new Promise((resolve) => {
-        const startTime = performance.now();
-
-        const frame = (now) => {
-            const elapsed = now - startTime;
-            const t = Math.min(1, elapsed / SPIN_ANIMATION_MS);
+    await SpinFX.start({
+        duration: SPIN_ANIMATION_MS,
+        sectorCount: state.wheelSectors.length,
+        onFrame: (t) => {
             const eased = easeOutCubic(t);
-
             state.wheelRotation = start + (end - start) * eased;
             drawWheel();
-
-            if (t < 1) {
-                requestAnimationFrame(frame);
-            } else {
-                state.wheelRotation = end;
-                drawWheel();
-                resolve();
-            }
-        };
-
-        requestAnimationFrame(frame);
+        }
     });
+
+    state.wheelRotation = end;
+    drawWheel();
 }
 
 /* ==========================================================
@@ -831,8 +822,10 @@ async function handleSpinClick() {
 
         await animateWheelToSector(sectorIndex);
 
-        playSpinStopEffects();
+        SpinFX.stop();
+        SpinFX.highlight(sectorIndex);
         showSpinResultModal(result);
+        SpinFX.result(result);
 
         // refresh silently so tasks/spins/history stay in sync with backend
         await refreshQuietly();
@@ -1073,8 +1066,7 @@ function showSpinResultModal(result) {
                     border: 1px solid rgba(212,175,55,.25);
                     box-shadow: 0 0 0 8px rgba(212,175,55,.05), 0 0 34px rgba(212,175,55,.2);
                     font-size: 40px;
-                    animation: rewardPopIn .35s ease;
-                ">${icon}</div>
+                " class="spinfx-result-icon">${icon}</div>
 
                 <div style="font-size:26px;font-weight:900;letter-spacing:-.4px;background:linear-gradient(180deg,#fff,#fff0b8,#D4AF37);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
                     ${escapeHtml(label)}
@@ -1090,7 +1082,7 @@ function showSpinResultModal(result) {
                     ${escapeHtml(message)}
                 </div>
 
-                <div style="
+                <div class="spinfx-ticket-card" style="
                     width:100%;
                     margin-top:6px;
                     padding:16px;
@@ -1114,7 +1106,6 @@ function showSpinResultModal(result) {
         `
     });
 
-    createConfettiBurst();
 }
 
 /* ==========================================================
@@ -1214,7 +1205,7 @@ function openRuntimeModal({ title, bodyHtml, footerHtml = "", width = 520 }) {
                 border: 1px solid rgba(255,255,255,.08);
                 box-shadow: 0 22px 60px rgba(0,0,0,.42);
                 padding: 18px;
-                animation: rewardPopIn .22s ease;
+                animation: modalPop .22s ease;
             ">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
                     <div style="font-size:20px;font-weight:900;letter-spacing:-.3px;background:linear-gradient(180deg,#fff,#fff0b8,#D4AF37);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
@@ -1262,58 +1253,6 @@ function closeRuntimeModal() {
     if (!dom.runtimeHost) return;
     dom.runtimeHost.innerHTML = "";
     dom.runtimeHost.hidden = true;
-}
-
-/* ==========================================================
-   CONFETTI
-========================================================== */
-
-function createConfettiBurst() {
-    const colors = ["#D4AF37", "#FFE8A3", "#1FAE63", "#ffffff", "#7CFFB2"];
-    const count = 28;
-
-    for (let i = 0; i < count; i++) {
-        const confetti = document.createElement("span");
-        confetti.style.position = "fixed";
-        confetti.style.left = `${Math.random() * 100}vw`;
-        confetti.style.top = `${40 + Math.random() * 20}vh`;
-        confetti.style.width = `${6 + Math.random() * 8}px`;
-        confetti.style.height = `${6 + Math.random() * 8}px`;
-        confetti.style.borderRadius = "2px";
-        confetti.style.background = colors[i % colors.length];
-        confetti.style.zIndex = "999999";
-        confetti.style.pointerEvents = "none";
-        confetti.style.opacity = "1";
-        confetti.style.transform = `translateY(0) rotate(${Math.random() * 360}deg)`;
-        confetti.style.transition = "transform 1.2s ease-out, opacity 1.2s ease-out";
-
-        document.body.appendChild(confetti);
-
-        requestAnimationFrame(() => {
-            confetti.style.transform = `
-                translateY(${120 + Math.random() * 160}px)
-                translateX(${(Math.random() - 0.5) * 160}px)
-                rotate(${360 + Math.random() * 720}deg)
-            `;
-            confetti.style.opacity = "0";
-        });
-
-        setTimeout(() => confetti.remove(), 1400);
-    }
-
-    if (navigator.vibrate) {
-        navigator.vibrate([20, 30, 20]);
-    }
-}
-
-function playSpinStopEffects() {
-    const wheel = dom.spinWheel?.parentElement;
-    if (!wheel) return;
-
-    wheel.style.animation = "rewardPulse .35s ease";
-    setTimeout(() => {
-        wheel.style.animation = "";
-    }, 420);
 }
 
 /* ==========================================================
