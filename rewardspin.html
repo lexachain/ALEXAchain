@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#D4AF37">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="ALEXA Lucky Spin">
+<meta name="format-detection" content="telephone=no">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ALEXA">
+
+<title>Lucky Spin • ALEXA</title>
+
+<link rel="icon" type="image/png" href="assets/icons/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/reward-spin.css">
+
+</head>
+
+<body>
+
+<noscript>
+    ALEXA membutuhkan JavaScript agar halaman Lucky Spin dapat berjalan.
+</noscript>
+
+<!-- =========================================================
+     LOADING OVERLAY
+========================================================= -->
+<div id="loadingOverlay" class="loading-overlay" hidden>
+    <div class="loading-card">
+        <div class="loading-spinner"></div>
+        <p id="loadingText">Loading Lucky Spin...</p>
+    </div>
+</div>
+
+<!-- =========================================================
+     GLOBAL FX LAYERS
+========================================================= -->
+<div class="background-glow" aria-hidden="true"></div>
+<div id="sparkleLayer" class="sparkle-layer" aria-hidden="true"></div>
+<div id="confettiLayer" class="confetti-layer" aria-hidden="true"></div>
+<div id="fxLayer" class="fx-layer" aria-hidden="true"></div>
+
+<!-- =========================================================
+     PAGE
+========================================================= -->
+<div class="page reward-spin-page">
+
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+    <header class="page-header">
+
+        <button id="btnBack" type="button" class="icon-btn" aria-label="Back">
+            <i class="fa-solid fa-arrow-left"></i>
+        </button>
+
+        <div class="page-header-title">
+            <h1>Lucky Spin</h1>
+            <small>ALEXA Reward Wheel</small>
+        </div>
+
+        <button id="btnHistory" type="button" class="icon-btn" aria-label="History">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+        </button>
+
+    </header>
+
+    <!-- =====================================================
+         SPIN INFO
+    ====================================================== -->
+    <section class="glass-card spin-info">
+
+        <div class="spin-info-top">
+            <div>
+                <h3>Available Spins</h3>
+                <p>Use your spins to unlock rewards.</p>
+            </div>
+
+            <div id="availableSpin" class="spin-count">
+                🎟️ x0
+            </div>
+        </div>
+
+        <div class="spin-profile">
+            <img
+                id="spinAvatar"
+                class="spin-avatar"
+                src="assets/avatar/default.png"
+                alt="Spin Avatar">
+
+            <div class="spin-profile-info">
+                <strong id="spinUsername">Loading...</strong>
+                <span id="spinUid">UID : -</span>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- =====================================================
+         SPIN WHEEL
+    ====================================================== -->
+    <section class="spin-wheel-section">
+
+        <div class="wheel-shell">
+
+            <div class="wheel-pointer" aria-hidden="true">
+                ▼
+            </div>
+
+            <!-- FX overlays for premium visuals -->
+            <div id="wheelFx" class="wheel-fx" aria-hidden="true"></div>
+            <div class="wheel-reflection" aria-hidden="true"></div>
+            <div class="wheel-ring-shine" aria-hidden="true"></div>
+            <div class="wheel-overlay" aria-hidden="true"></div>
+
+            <canvas
+                id="spinWheel"
+                width="360"
+                height="360"
+                class="spin-wheel-canvas">
+            </canvas>
+
+            <div class="wheel-glow" aria-hidden="true"></div>
+            <div class="center-glow" aria-hidden="true"></div>
+
+        </div>
+
+        <button id="btnSpin" type="button" class="gold-btn">
+            <span class="btn-shine" aria-hidden="true"></span>
+            <span>SPIN NOW</span>
+        </button>
+
+    </section>
+
+    <!-- =====================================================
+         TASKS
+    ====================================================== -->
+    <section class="glass-card">
+
+        <h3>Earn Spins</h3>
+
+        <div class="task-list">
+
+            <div class="task-item" role="button" tabindex="0">
+                <div class="task-left">
+                    <strong>👥 Referral Task</strong>
+                    <small>0 / 2 Referral</small>
+                </div>
+                <div class="task-right">🎡 +1 Spin</div>
+            </div>
+
+            <div class="task-item" role="button" tabindex="0">
+                <div class="task-left">
+                    <strong>📅 Daily Check-in</strong>
+                    <small>Day 0 / 7</small>
+                </div>
+                <div class="task-right">🎡 +1 Spin</div>
+            </div>
+
+            <div class="task-item">
+                <div class="task-left">
+                    <strong>🪙 Exchange LEXA</strong>
+                    <small>0.1 LEXA → +1 Spin</small>
+                </div>
+                <button id="btnExchangeSpin" type="button" class="small-gold-btn">
+                    +1 Spin
+                </button>
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- =====================================================
+         REWARD POOL
+    ====================================================== -->
+    <section class="glass-card">
+
+        <h3>Reward Pool</h3>
+
+        <div class="reward-grid">
+            <div class="reward-pill"><strong>🪙 0.05 LEXA</strong></div>
+            <div class="reward-pill"><strong>🪙 0.50 LEXA</strong></div>
+            <div class="reward-pill"><strong>🪙 1.5 LEXA</strong></div>
+            <div class="reward-pill"><strong>🪙 5 LEXA</strong></div>
+            <div class="reward-pill"><strong>🪙 7 LEXA</strong></div>
+            <div class="reward-pill"><strong>🎁 Mystery Box</strong></div>
+            <div class="reward-pill"><strong>💎 70 LEXA</strong></div>
+        </div>
+
+    </section>
+
+    <!-- =====================================================
+         RULES
+    ====================================================== -->
+    <section class="glass-card">
+
+        <h3>Rules</h3>
+
+        <ul class="spin-rules">
+            <li>🎁 New users receive 1 welcome spin.</li>
+            <li>👥 Every 2 successful referrals earn 1 spin.</li>
+            <li>📅 Complete Daily Check-in to earn spins.</li>
+            <li>🪙 Exchange 0.1 LEXA for +1 spin.</li>
+            <li>☁️ Rewards are determined securely by the server.</li>
+        </ul>
+
+    </section>
+
+</div>
+
+<!-- =========================================================
+     RUNTIME CONTAINER
+     Used by reward-spin.js for modal result, history, no-spin, etc.
+========================================================= -->
+<div id="rewardSpinRuntime" hidden></div>
+
+<!-- =========================================================
+     TOAST CONTAINER
+========================================================= -->
+<div id="toastContainer"></div>
+
+<script type="module" src="js/reward-spin.js"></script>
+
+</body>
+</html>
