@@ -38,64 +38,19 @@ const SPIN_FULL_TURNS = 6;
 const TAU = Math.PI * 2;
 
 const DEFAULT_WHEEL_SECTORS = [
-    {
-        label: "0.05 LEXA",
-        amount: 0.05,
-        type: "lexa",
-        color: "#E3B23C"
-    },
-    {
-        label: "0.50 LEXA",
-        amount: 0.5,
-        type: "lexa",
-        color: "#B88A1E"
-    },
-    {
-        label: "1.5 LEXA",
-        amount: 1.5,
-        type: "lexa",
-        color: "#1FAE63"
-    },
-    {
-        label: "5 LEXA",
-        amount: 5,
-        type: "lexa",
-        color: "#6E59FF"
-    },
-    {
-        label: "7 LEXA",
-        amount: 7,
-        type: "lexa",
-        color: "#D97706"
-    },
-    {
-        label: "Mystery Box",
-        type: "mystery",
-        color: "#3A4D70"
-    },
-    {
-        label: "70 LEXA",
-        amount: 70,
-        type: "jackpot",
-        color: "#D4AF37"
-    }
+    { label: "0.05 LEXA", amount: 0.05, type: "lexa", color: "#E3B23C" },
+    { label: "0.50 LEXA", amount: 0.5, type: "lexa", color: "#B88A1E" },
+    { label: "1.5 LEXA", amount: 1.5, type: "lexa", color: "#1FAE63" },
+    { label: "5 LEXA", amount: 5, type: "lexa", color: "#6E59FF" },
+    { label: "7 LEXA", amount: 7, type: "lexa", color: "#D97706" },
+    { label: "Mystery Box", type: "mystery", color: "#3A4D70" },
+    { label: "70 LEXA", amount: 70, type: "jackpot", color: "#D4AF37" }
 ];
 
 const DEFAULT_TASKS = {
-    referral: {
-        current: 0,
-        target: 2,
-        rewardSpins: 1
-    },
-    daily: {
-        current: 0,
-        target: 7,
-        rewardSpins: 1
-    },
-    exchange: {
-        price: SPIN_EXCHANGE_PRICE,
-        rewardSpins: 1
-    }
+    referral: { current: 0, target: 2, rewardSpins: 1 },
+    daily: { current: 0, target: 7, rewardSpins: 1 },
+    exchange: { price: SPIN_EXCHANGE_PRICE, rewardSpins: 1 }
 };
 
 const DEFAULT_RULES = [
@@ -117,13 +72,10 @@ const state = {
     authenticated: false,
     firebaseUser: null,
     profile: null,
-
     spins: 0,
     tasks: structuredClone(DEFAULT_TASKS),
-    rewardPool: [],
     history: [],
     wheelSectors: [...DEFAULT_WHEEL_SECTORS],
-
     wheelCanvasSize: 360,
     wheelRotation: 0,
     spinning: false,
@@ -139,25 +91,18 @@ const $ = (id) => document.getElementById(id);
 const dom = {
     body: null,
     page: null,
-
     btnBack: null,
     btnHistory: null,
     btnSpin: null,
     btnExchangeSpin: null,
-
     availableSpin: null,
     spinWheel: null,
-
     taskItems: [],
-    rewardGrid: null,
     spinRules: null,
-
     loadingOverlay: null,
     loadingText: null,
-
     toastContainer: null,
     runtimeHost: null,
-
     spinInfoCard: null,
     wheelSection: null
 };
@@ -223,7 +168,6 @@ function cacheDom() {
     dom.spinWheel = $("spinWheel");
 
     dom.taskItems = Array.from(document.querySelectorAll(".task-item"));
-    dom.rewardGrid = document.querySelector(".reward-grid");
     dom.spinRules = document.querySelector(".spin-rules");
 
     dom.loadingOverlay = $("loadingOverlay");
@@ -240,18 +184,6 @@ function ensureRuntimeNodes() {
     if (!dom.toastContainer) {
         dom.toastContainer = document.createElement("div");
         dom.toastContainer.id = "toastContainer";
-        dom.toastContainer.style.cssText = `
-            position: fixed;
-            left: 50%;
-            bottom: 22px;
-            transform: translateX(-50%);
-            width: min(92vw, 420px);
-            z-index: 1000000;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        `;
         document.body.appendChild(dom.toastContainer);
     }
 
@@ -266,44 +198,12 @@ function ensureRuntimeNodes() {
         dom.loadingOverlay.id = "loadingOverlay";
         dom.loadingOverlay.className = "loading-overlay";
         dom.loadingOverlay.hidden = true;
-        dom.loadingOverlay.style.cssText = `
-            position: fixed;
-            inset: 0;
-            z-index: 999999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0,0,0,.6);
-            backdrop-filter: blur(10px);
-        `;
-
         dom.loadingOverlay.innerHTML = `
-            <div class="loading-card" style="
-                width: min(320px, 86vw);
-                padding: 22px;
-                border-radius: 22px;
-                background: linear-gradient(180deg, rgba(22,31,49,.98), rgba(10,16,28,.98));
-                border: 1px solid rgba(255,255,255,.08);
-                box-shadow: 0 18px 48px rgba(0,0,0,.35);
-                text-align: center;
-            ">
-                <div class="loading-spinner" style="
-                    width: 40px;
-                    height: 40px;
-                    margin: 0 auto 14px;
-                    border-radius: 50%;
-                    border: 4px solid rgba(255,255,255,.12);
-                    border-top-color: #D4AF37;
-                    animation: rewardSpinLoader 1s linear infinite;
-                "></div>
-                <p id="loadingText" style="
-                    margin: 0;
-                    color: #a3afc2;
-                    font-size: 14px;
-                ">Loading...</p>
+            <div class="loading-card">
+                <div class="loading-spinner"></div>
+                <p id="loadingText">Loading...</p>
             </div>
         `;
-
         document.body.appendChild(dom.loadingOverlay);
         dom.loadingText = $("loadingText");
     }
@@ -320,9 +220,7 @@ function bindEvents() {
     dom.btnExchangeSpin?.addEventListener("click", handleExchangeSpin);
 
     window.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-            closeRuntimeModal();
-        }
+        if (e.key === "Escape") closeRuntimeModal();
     });
 }
 
@@ -404,18 +302,9 @@ function applyDashboard(payload = {}) {
         }
     };
 
-    const sectors = payload?.wheel?.sectors || payload?.sectors || payload?.rewardPool;
+    const sectors = payload?.wheel?.sectors || payload?.sectors;
     state.wheelSectors = normalizeSectors(sectors && sectors.length ? sectors : DEFAULT_WHEEL_SECTORS);
-
-    state.rewardPool = state.wheelSectors.map((sector) => ({
-        label: sector.label,
-        chance: sector.chance ?? null,
-        type: sector.type
-    }));
-
-    if (Array.isArray(payload.history)) {
-        state.history = payload.history;
-    }
+    state.history = Array.isArray(payload.history) ? payload.history : state.history;
 
     if (typeof payload.rotation === "number") {
         state.wheelRotation = payload.rotation;
@@ -434,7 +323,6 @@ function renderAll() {
     renderSpinInfo();
     renderSpinButton();
     renderTasks();
-    renderRewardPool();
     renderRules();
     renderWheel();
     renderIdentity();
@@ -462,12 +350,9 @@ function renderSpinButton() {
     }
 
     dom.btnSpin.disabled = false;
-
-    if (state.spins > 0) {
-        dom.btnSpin.innerHTML = `<span class="btn-shine" aria-hidden="true"></span><span>SPIN NOW</span>`;
-    } else {
-        dom.btnSpin.innerHTML = `<span class="btn-shine" aria-hidden="true"></span><span>GET MORE SPINS</span>`;
-    }
+    dom.btnSpin.innerHTML = state.spins > 0
+        ? `<span class="btn-shine" aria-hidden="true"></span><span>SPIN NOW</span>`
+        : `<span class="btn-shine" aria-hidden="true"></span><span>GET MORE SPINS</span>`;
 }
 
 function renderTasks() {
@@ -481,9 +366,7 @@ function renderTasks() {
                 <strong>👥 Referral Task</strong>
                 <small>${referral.current} / ${referral.target} Referral</small>
             </div>
-            <div class="task-right">
-                🎡 +${referral.rewardSpins} Spin
-            </div>
+            <div class="task-right">🎡 +${referral.rewardSpins} Spin</div>
         `;
         dom.taskItems[0].title = "Invite friends";
     }
@@ -494,9 +377,7 @@ function renderTasks() {
                 <strong>📅 Daily Check-in</strong>
                 <small>Day ${daily.current} / ${daily.target}</small>
             </div>
-            <div class="task-right">
-                🎡 +${daily.rewardSpins} Spin
-            </div>
+            <div class="task-right">🎡 +${daily.rewardSpins} Spin</div>
         `;
         dom.taskItems[1].title = "Daily check-in";
     }
@@ -507,9 +388,7 @@ function renderTasks() {
                 <strong>🪙 Exchange LEXA</strong>
                 <small>${formatLexa(exchange.price)} LEXA → +${exchange.rewardSpins} Spin</small>
             </div>
-            <button type="button" class="small-gold-btn" id="btnExchangeSpin">
-                +1 Spin
-            </button>
+            <button type="button" class="small-gold-btn" id="btnExchangeSpin">+1 Spin</button>
         `;
         const newBtn = dom.taskItems[2].querySelector("#btnExchangeSpin");
         if (newBtn) {
@@ -519,23 +398,8 @@ function renderTasks() {
     }
 }
 
-function renderRewardPool() {
-    if (!dom.rewardGrid) return;
-
-    dom.rewardGrid.innerHTML = state.wheelSectors.map((sector) => {
-        const chance = sector.chance != null ? `<small>${formatChance(sector.chance)}</small>` : "";
-        return `
-            <div class="reward-pill">
-                <strong>${escapeHtml(sector.label)}</strong>
-                ${chance}
-            </div>
-        `;
-    }).join("");
-}
-
 function renderRules() {
     if (!dom.spinRules) return;
-
     dom.spinRules.innerHTML = DEFAULT_RULES.map((rule) => `<li>${escapeHtml(rule)}</li>`).join("");
 }
 
@@ -550,11 +414,7 @@ function renderIdentity() {
     const avatarNode = $("spinAvatar");
 
     if (nameNode) {
-        nameNode.textContent =
-            state.profile?.displayName ||
-            state.profile?.username ||
-            state.firebaseUser?.displayName ||
-            "User";
+        nameNode.textContent = state.profile?.displayName || state.profile?.username || state.firebaseUser?.displayName || "User";
     }
 
     if (uidNode) {
@@ -562,10 +422,7 @@ function renderIdentity() {
     }
 
     if (avatarNode && state.firebaseUser) {
-        avatarNode.src =
-            state.profile?.avatar ||
-            state.firebaseUser.photoURL ||
-            "assets/avatar/default.png";
+        avatarNode.src = state.profile?.avatar || state.firebaseUser.photoURL || "assets/avatar/default.png";
     }
 }
 
@@ -577,20 +434,17 @@ let wheelCtx = null;
 
 function setupCanvas() {
     if (!dom.spinWheel) return;
-
     wheelCtx = dom.spinWheel.getContext("2d");
     fitWheelCanvas();
 }
 
 function fitWheelCanvas() {
     if (!dom.spinWheel) return;
-
     const rect = dom.spinWheel.getBoundingClientRect();
     const size = Math.max(280, Math.min(rect.width || 360, 420));
     const dpr = Math.max(1, window.devicePixelRatio || 1);
 
     state.wheelCanvasSize = size;
-
     dom.spinWheel.width = Math.floor(size * dpr);
     dom.spinWheel.height = Math.floor(size * dpr);
     dom.spinWheel.style.width = `${size}px`;
@@ -614,7 +468,6 @@ function drawWheel() {
     const halo = ctx.createRadialGradient(center, center, 8, center, center, radius + 24);
     halo.addColorStop(0, "rgba(212,175,55,.18)");
     halo.addColorStop(1, "rgba(0,0,0,0)");
-
     ctx.fillStyle = halo;
     ctx.beginPath();
     ctx.arc(center, center, radius + 20, 0, TAU);
@@ -649,7 +502,7 @@ function drawWheel() {
         ctx.fill();
 
         ctx.strokeStyle = "rgba(255,255,255,.18)";
-        ctx.lineWidth = 1.2;
+        ctx.lineWidth = 3.2;
         ctx.stroke();
 
         ctx.save();
@@ -673,19 +526,14 @@ function drawWheel() {
             const text = lines[j];
             let textX = labelRadius;
             let textY = startY + j * lineHeight;
-
             const angleDeg = (mid * 180) / Math.PI;
             if (angleDeg > 90 && angleDeg < 270) {
                 ctx.rotate(Math.PI);
                 textX = -labelRadius;
                 ctx.textAlign = "left";
             }
-
             ctx.fillText(text, textX, textY);
-            ctx.setTransform(
-                Math.max(1, window.devicePixelRatio || 1), 0, 0,
-                Math.max(1, window.devicePixelRatio || 1), 0, 0
-            );
+            ctx.setTransform(Math.max(1, window.devicePixelRatio || 1), 0, 0, Math.max(1, window.devicePixelRatio || 1), 0, 0);
             ctx.translate(center, center);
             ctx.rotate(mid);
         }
@@ -696,7 +544,7 @@ function drawWheel() {
     ctx.beginPath();
     ctx.arc(center, center, radius + 2, 0, TAU);
     ctx.strokeStyle = "rgba(255,255,255,.25)";
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 14;
     ctx.stroke();
 
     const hub = ctx.createRadialGradient(center, center, 4, center, center, 48);
@@ -738,7 +586,6 @@ function getTargetRotationForSector(index) {
     const current = normalizeRotation(state.wheelRotation);
     const target = normalizeRotation(desired);
     const delta = (target - current + TAU) % TAU;
-
     return state.wheelRotation + (SPIN_FULL_TURNS * TAU) + delta;
 }
 
@@ -766,12 +613,10 @@ async function animateWheelToSector(index) {
 
 async function handleSpinClick() {
     if (state.spinning) return;
-
     if (!state.backendReady) {
         showToast("warning", "Lucky Spin", "Backend belum tersambung.");
         return;
     }
-
     if (state.spins <= 0) {
         openNoSpinModal();
         return;
@@ -788,7 +633,6 @@ async function handleSpinClick() {
         });
 
         state.currentSpinResult = result;
-
         const reward = result.reward || {};
         const sectorIndex = resolveSectorIndex(result, reward);
 
@@ -800,12 +644,10 @@ async function handleSpinClick() {
         renderSpinButton();
 
         await animateWheelToSector(sectorIndex);
-
         SpinFX.stop();
         SpinFX.highlight(sectorIndex);
         showSpinResultModal(result);
         SpinFX.result(result);
-
         await refreshQuietly();
     } catch (error) {
         console.error(error);
@@ -817,22 +659,14 @@ async function handleSpinClick() {
 }
 
 function resolveSectorIndex(result, reward) {
-    const maybeIndex =
-        reward?.sectorIndex ??
-        reward?.sector ??
-        result?.sectorIndex ??
-        result?.sector ??
-        result?.wheelIndex;
-
+    const maybeIndex = reward?.sectorIndex ?? reward?.sector ?? result?.sectorIndex ?? result?.sector ?? result?.wheelIndex;
     if (Number.isInteger(maybeIndex)) {
         return clampIndex(maybeIndex, state.wheelSectors.length);
     }
 
     const label = reward?.label || reward?.name || reward?.reward || result?.rewardLabel;
     if (label) {
-        const found = state.wheelSectors.findIndex((s) =>
-            String(s.label).toLowerCase() === String(label).toLowerCase()
-        );
+        const found = state.wheelSectors.findIndex((s) => String(s.label).toLowerCase() === String(label).toLowerCase());
         if (found >= 0) return found;
     }
 
@@ -904,11 +738,7 @@ async function openHistoryModal() {
     openRuntimeModal({
         title: "Spin History",
         width: 560,
-        bodyHtml: `
-            <div id="historyContent" style="display:flex;flex-direction:column;gap:12px;">
-                <div style="color:#a3afc2;font-size:14px;">Loading history...</div>
-            </div>
-        `,
+        bodyHtml: `<div id="historyContent" class="history-content"><div class="history-loading">Loading history...</div></div>`,
         footerHtml: `<button class="runtime-primary" data-close-modal>Close</button>`
     });
 
@@ -916,75 +746,37 @@ async function openHistoryModal() {
         const token = await getIdToken();
         const history = await apiGet("/api/spin/history?limit=20", token);
         const items = Array.isArray(history.items) ? history.items : (Array.isArray(history.history) ? history.history : []);
-
         const content = $("historyContent");
-        if (content) {
-            content.innerHTML = renderHistoryList(items);
-        }
+        if (content) content.innerHTML = renderHistoryList(items);
     } catch (error) {
         console.error(error);
         const content = $("historyContent");
-        if (content) {
-            content.innerHTML = `
-                <div style="color:#ff8e8e;font-size:14px;">
-                    ${escapeHtml(error.message || "Unable to load history.")}
-                </div>
-            `;
-        }
+        if (content) content.innerHTML = `<div class="history-error">${escapeHtml(error.message || "Unable to load history.")}</div>`;
     }
 }
 
 function renderHistoryList(items) {
     if (!items.length) {
-        return `
-            <div style="
-                padding: 18px;
-                border-radius: 18px;
-                background: rgba(255,255,255,.04);
-                border: 1px solid rgba(255,255,255,.06);
-                color: #a3afc2;
-                font-size: 14px;
-                text-align: center;
-            ">
-                No history yet.
-            </div>
-        `;
+        return `<div class="history-empty">No history yet.</div>`;
     }
 
     return items.map((item) => {
-        const label =
-            item.label ||
-            item.rewardLabel ||
-            item.reward ||
-            item.title ||
-            "Lucky Spin";
-
-        const amount =
-            item.amount != null
-                ? `${formatRewardAmount(item.amount)} LEXA`
-                : (item.value != null ? `${formatRewardAmount(item.value)} LEXA` : "");
-
+        const label = item.label || item.rewardLabel || item.reward || item.title || "Lucky Spin";
+        const amount = item.amount != null
+            ? `${formatRewardAmount(item.amount)} LEXA`
+            : (item.value != null ? `${formatRewardAmount(item.value)} LEXA` : "");
         const status = item.status || "SUCCESS";
         const createdAt = item.createdAt || item.timestamp || item.time || "";
 
         return `
-            <div style="
-                display:flex;
-                justify-content:space-between;
-                gap:12px;
-                padding: 14px 16px;
-                border-radius: 18px;
-                background: rgba(255,255,255,.04);
-                border: 1px solid rgba(255,255,255,.06);
-            ">
-                <div style="min-width:0;flex:1;">
-                    <div style="font-weight:800;color:#fff;line-height:1.3;">${escapeHtml(label)}</div>
-                    <div style="font-size:12px;color:#a3afc2;margin-top:4px;">${escapeHtml(createdAt ? formatDateTime(createdAt) : "Unknown time")}</div>
+            <div class="history-row">
+                <div class="history-left">
+                    <div class="history-title">${escapeHtml(label)}</div>
+                    <div class="history-time">${escapeHtml(createdAt ? formatDateTime(createdAt) : "Unknown time")}</div>
                 </div>
-
-                <div style="text-align:right;flex-shrink:0;">
-                    <div style="font-weight:800;color:#ffe8a3;">${escapeHtml(amount || status)}</div>
-                    <div style="font-size:12px;color:#a3afc2;margin-top:4px;">${escapeHtml(status)}</div>
+                <div class="history-right">
+                    <div class="history-amount">${escapeHtml(amount || status)}</div>
+                    <div class="history-status">${escapeHtml(status)}</div>
                 </div>
             </div>
         `;
@@ -997,7 +789,6 @@ function renderHistoryList(items) {
 
 function showSpinResultModal(result) {
     const data = buildSpinResultData(result);
-
     openRuntimeModal({
         title: "🎉 CONGRATULATIONS 🎉",
         width: 320,
@@ -1006,87 +797,48 @@ function showSpinResultModal(result) {
         bodyHtml: buildSpinResultBody(data),
         footerHtml: buildSpinResultFooter()
     });
-
     bindSpinResultEvents();
 }
 
 function buildSpinResultData(result = {}) {
     const reward = result.reward || {};
-
-    const icon =
-        reward.type === "mystery"
-            ? "🎁"
-            : reward.type === "jackpot"
-                ? "💎"
-                : "🪙";
-
-    const label =
-        reward.label ||
-        reward.name ||
-        reward.reward ||
-        "Reward";
-
-    const subtitle =
-        reward.type === "jackpot"
-            ? "Jackpot Unlocked"
-            : reward.type === "mystery"
-                ? `${formatRewardAmount(reward.amount)} LEXA`
-                : "Reward Successfully Added";
+    const icon = reward.type === "mystery" ? "🎁" : reward.type === "jackpot" ? "💎" : "🪙";
+    const label = reward.label || reward.name || reward.reward || "Reward";
+    const subtitle = reward.type === "jackpot"
+        ? "Jackpot Unlocked"
+        : reward.type === "mystery"
+            ? `${formatRewardAmount(reward.amount)} LEXA`
+            : "Reward Successfully Added";
 
     return {
         icon,
         label,
         subtitle,
         ticketId: result.ticketId || result.spinId || "-",
-        remaining:
-            typeof result.remainingSpins === "number"
-                ? result.remainingSpins
-                : state.spins
+        remaining: typeof result.remainingSpins === "number" ? result.remainingSpins : state.spins
     };
 }
 
 function buildSpinResultBody(data) {
     return `
         <div class="spin-result">
-            <div class="spin-result-icon">
-                ${data.icon}
-            </div>
-
-            <div class="spin-result-label">
-                ${escapeHtml(data.label)}
-            </div>
-
-            <div class="spin-result-subtitle">
-                ${escapeHtml(data.subtitle)}
-            </div>
-
-            <div class="spin-ticket">
-                <small>Ticket ID</small>
-                <strong>${escapeHtml(data.ticketId)}</strong>
-            </div>
-
-            <div class="spin-remaining">
-                <small>🎡 Remaining Spins</small>
-                <strong>${data.remaining}</strong>
-            </div>
+            <div class="spin-result-icon">${data.icon}</div>
+            <div class="spin-result-label">${escapeHtml(data.label)}</div>
+            <div class="spin-result-subtitle">${escapeHtml(data.subtitle)}</div>
+            <div class="spin-ticket"><small>Ticket ID</small><strong>${escapeHtml(data.ticketId)}</strong></div>
+            <div class="spin-remaining"><small>🎡 Remaining Spins</small><strong>${data.remaining}</strong></div>
         </div>
     `;
 }
 
 function buildSpinResultFooter() {
-    return `
-        <button class="runtime-primary" data-close-modal>
-            Collect
-        </button>
-    `;
+    return `<button class="runtime-primary" data-close-modal>Collect</button>`;
 }
 
 function bindSpinResultEvents() {
-    dom.runtimeHost
-        ?.querySelectorAll("[data-close-modal]")
-        .forEach((btn) => {
-            btn.addEventListener("click", closeRuntimeModal);
-        });
+    dom.runtimeHost?.querySelectorAll("[data-close-modal]").forEach((btn) => {
+        btn.addEventListener("click", closeRuntimeModal);
+    });
 }
 
 function openExchangeModal(price, rewardSpins) {
@@ -1095,23 +847,15 @@ function openExchangeModal(price, rewardSpins) {
             title: "🪙 Exchange Spin",
             width: 500,
             bodyHtml: `
-                <div style="text-align:center">
-                    <div style="font-size:48px;margin-bottom:16px;">🎡</div>
-                    <div style="font-size:18px;font-weight:700;color:#fff;">
-                        Exchange Pending LEXA
+                <div class="exchange-modal">
+                    <div class="exchange-emoji">🎡</div>
+                    <div class="exchange-title">Exchange Pending LEXA</div>
+                    <div class="exchange-card">
+                        <div class="exchange-amount">${formatLexa(price)} LEXA</div>
+                        <div class="exchange-arrow">↓</div>
+                        <div class="exchange-result">+${rewardSpins} SPIN</div>
                     </div>
-                    <div style="margin-top:20px;padding:18px;border-radius:18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);">
-                        <div style="font-size:28px;font-weight:800;color:#D4AF37;">
-                            ${formatLexa(price)} LEXA
-                        </div>
-                        <div style="margin:10px 0;font-size:28px;color:#999;">↓</div>
-                        <div style="font-size:28px;font-weight:800;color:#49E18D;">
-                            +${rewardSpins} SPIN
-                        </div>
-                    </div>
-                    <p style="margin-top:18px;color:#a3afc2;line-height:1.6;">
-                        Convert Pending LEXA into Lucky Spin?
-                    </p>
+                    <p class="exchange-copy">Convert Pending LEXA into Lucky Spin?</p>
                 </div>
             `,
             footerHtml: `
@@ -1120,19 +864,14 @@ function openExchangeModal(price, rewardSpins) {
             `
         });
 
-        document
-            .getElementById("exchangeCancel")
-            ?.addEventListener("click", () => {
-                closeRuntimeModal();
-                resolve(false);
-            });
-
-        document
-            .getElementById("exchangeConfirm")
-            ?.addEventListener("click", () => {
-                closeRuntimeModal();
-                resolve(true);
-            });
+        document.getElementById("exchangeCancel")?.addEventListener("click", () => {
+            closeRuntimeModal();
+            resolve(false);
+        });
+        document.getElementById("exchangeConfirm")?.addEventListener("click", () => {
+            closeRuntimeModal();
+            resolve(true);
+        });
     });
 }
 
@@ -1145,22 +884,11 @@ function openNoSpinModal() {
         title: "No Spins",
         width: 520,
         bodyHtml: `
-            <div style="display:flex;flex-direction:column;gap:14px;">
-                <div style="color:#a3afc2;line-height:1.8;font-size:14px;">
-                    Kamu belum punya spin. Selesaikan task berikut untuk menambah spin.
-                </div>
-                <div style="padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);">
-                    <div style="font-weight:800;color:#fff;">👥 Referral Task</div>
-                    <div style="margin-top:4px;color:#a3afc2;font-size:13px;">2 referral aktif = +1 spin</div>
-                </div>
-                <div style="padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);">
-                    <div style="font-weight:800;color:#fff;">📅 Daily Check-in</div>
-                    <div style="margin-top:4px;color:#a3afc2;font-size:13px;">Check-in berturut-turut = +1 spin</div>
-                </div>
-                <div style="padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);">
-                    <div style="font-weight:800;color:#fff;">🪙 Exchange</div>
-                    <div style="margin-top:4px;color:#a3afc2;font-size:13px;">0.1 LEXA = +1 spin</div>
-                </div>
+            <div class="no-spin-modal">
+                <div class="no-spin-copy">Kamu belum punya spin. Selesaikan task berikut untuk menambah spin.</div>
+                <div class="no-spin-card"><div class="no-spin-head">👥 Referral Task</div><div class="no-spin-sub">2 referral aktif = +1 spin</div></div>
+                <div class="no-spin-card"><div class="no-spin-head">📅 Daily Check-in</div><div class="no-spin-sub">Check-in berturut-turut = +1 spin</div></div>
+                <div class="no-spin-card"><div class="no-spin-head">🪙 Exchange</div><div class="no-spin-sub">0.1 LEXA = +1 spin</div></div>
             </div>
         `,
         footerHtml: `
@@ -1190,14 +918,7 @@ function openNoSpinModal() {
    RUNTIME MODAL
 ========================================================== */
 
-function openRuntimeModal({
-    title,
-    bodyHtml,
-    footerHtml = "",
-    width = 520,
-    showClose = true,
-    modalClass = ""
-}) {
+function openRuntimeModal({ title, bodyHtml, footerHtml = "", width = 520, showClose = true, modalClass = "" }) {
     if (!dom.runtimeHost) return;
 
     dom.runtimeHost.hidden = false;
@@ -1206,37 +927,18 @@ function openRuntimeModal({
             <div class="rewardspin-modal ${modalClass}" style="width:min(100%,${width}px);">
                 <div class="rewardspin-header">
                     <h2>${escapeHtml(title)}</h2>
-                    ${showClose ? `
-                        <button type="button" class="runtime-close" data-close-modal>
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
-                    ` : ""}
+                    ${showClose ? `<button type="button" class="runtime-close" data-close-modal><i class="fa-solid fa-xmark"></i></button>` : ""}
                 </div>
-
-                <div class="rewardspin-body">
-                    ${bodyHtml}
-                </div>
-
-                ${footerHtml ? `
-                    <div class="rewardspin-footer">
-                        ${footerHtml}
-                    </div>
-                ` : ""}
+                <div class="rewardspin-body">${bodyHtml}</div>
+                ${footerHtml ? `<div class="rewardspin-footer">${footerHtml}</div>` : ""}
             </div>
         </div>
     `;
 
-    dom.runtimeHost
-        .querySelectorAll("[data-close-modal]")
-        .forEach((btn) => {
-            btn.addEventListener("click", closeRuntimeModal);
-        });
-
+    dom.runtimeHost.querySelectorAll("[data-close-modal]").forEach((btn) => btn.addEventListener("click", closeRuntimeModal));
     const backdrop = dom.runtimeHost.querySelector(".rewardspin-backdrop");
     backdrop?.addEventListener("click", (e) => {
-        if (e.target === backdrop) {
-            closeRuntimeModal();
-        }
+        if (e.target === backdrop) closeRuntimeModal();
     });
 }
 
@@ -1253,30 +955,17 @@ function closeRuntimeModal() {
 async function apiGet(path, token = "") {
     const url = `${API_BASE}${path}`;
     const headers = new Headers();
-
-    if (token) {
-        headers.set("Authorization", `Bearer ${token}`);
-    }
-
-    const res = await fetch(url, {
-        method: "GET",
-        headers,
-        credentials: "include"
-    });
-
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const res = await fetch(url, { method: "GET", headers, credentials: "include" });
     return parseApiResponse(res);
 }
 
 async function apiPost(path, token = "", body = null) {
     const url = `${API_BASE}${path}`;
     const headers = new Headers();
-
-    if (token) {
-        headers.set("Authorization", `Bearer ${token}`);
-    }
+    if (token) headers.set("Authorization", `Bearer ${token}`);
 
     let payload = undefined;
-
     if (body instanceof FormData) {
         payload = body;
     } else if (body != null) {
@@ -1284,13 +973,7 @@ async function apiPost(path, token = "", body = null) {
         payload = JSON.stringify(body);
     }
 
-    const res = await fetch(url, {
-        method: "POST",
-        headers,
-        body: payload,
-        credentials: "include"
-    });
-
+    const res = await fetch(url, { method: "POST", headers, body: payload, credentials: "include" });
     return parseApiResponse(res);
 }
 
@@ -1299,12 +982,7 @@ async function parseApiResponse(res) {
     const data = raw ? safeJsonParse(raw) : {};
 
     if (!res.ok) {
-        const message =
-            data?.message ||
-            data?.error ||
-            data?.detail ||
-            `HTTP ${res.status}`;
-        throw new Error(message);
+        throw new Error(data?.message || data?.error || data?.detail || `HTTP ${res.status}`);
     }
 
     if (data && data.success === false) {
@@ -1321,7 +999,6 @@ async function parseApiResponse(res) {
 async function getIdToken() {
     const user = state.firebaseUser || auth.currentUser;
     if (!user) return "";
-
     try {
         return await user.getIdToken();
     } catch (error) {
@@ -1340,11 +1017,7 @@ function toNumber(value, fallback = 0) {
 }
 
 function safeJsonParse(text) {
-    try {
-        return JSON.parse(text);
-    } catch {
-        return { message: text };
-    }
+    try { return JSON.parse(text); } catch { return { message: text }; }
 }
 
 function escapeHtml(text) {
@@ -1385,13 +1058,11 @@ function formatChanceNumber(value) {
 function formatDateTime(value) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
-
     const dd = String(date.getDate()).padStart(2, "0");
     const mm = String(date.getMonth() + 1).padStart(2, "0");
     const yyyy = date.getFullYear();
     const hh = String(date.getHours()).padStart(2, "0");
     const mi = String(date.getMinutes()).padStart(2, "0");
-
     return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
 }
 
@@ -1407,79 +1078,49 @@ function observeResize() {
 }
 
 function observeConnection() {
-    window.addEventListener("online", () => {
-        showToast("success", "Connection", "Back online.");
-    });
-
-    window.addEventListener("offline", () => {
-        showToast("warning", "Connection", "You are offline.");
-    });
+    window.addEventListener("online", () => showToast("success", "Connection", "Back online."));
+    window.addEventListener("offline", () => showToast("warning", "Connection", "You are offline."));
 }
 
 function pickSectorColor(index) {
-    const palette = [
-        "#D4AF37",
-        "#B88A1E",
-        "#1FAE63",
-        "#6E59FF",
-        "#D97706",
-        "#3A4D70",
-        "#8A6510"
-    ];
+    const palette = ["#D4AF37", "#B88A1E", "#1FAE63", "#6E59FF", "#D97706", "#3A4D70", "#8A6510"];
     return palette[index % palette.length];
 }
 
-function lightenColor(hex, amount = 16) {
-    return shiftHexColor(hex, amount);
-}
-
-function darkenColor(hex, amount = 12) {
-    return shiftHexColor(hex, -amount);
-}
+function lightenColor(hex, amount = 16) { return shiftHexColor(hex, amount); }
+function darkenColor(hex, amount = 12) { return shiftHexColor(hex, -amount); }
 
 function shiftHexColor(hex, amount = 0) {
     const clean = String(hex || "").replace("#", "");
     if (clean.length !== 6) return hex || "#D4AF37";
-
     const num = parseInt(clean, 16);
     let r = (num >> 16) & 255;
     let g = (num >> 8) & 255;
     let b = num & 255;
-
     r = clampColor(r + amount);
     g = clampColor(g + amount);
     b = clampColor(b + amount);
-
-    return `#${((1 << 24) + (r << 16) + (g << 8) + b)
-        .toString(16)
-        .slice(1)}`;
+    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 }
 
-function clampColor(v) {
-    return Math.max(0, Math.min(255, v));
-}
+function clampColor(v) { return Math.max(0, Math.min(255, v)); }
 
 function wrapWheelLabel(label) {
     const text = String(label || "");
     const words = text.split(/\s+/).filter(Boolean);
-
     if (words.length <= 1) return [text];
 
     const lines = [];
     let current = "";
-
     for (const word of words) {
         const test = current ? `${current} ${word}` : word;
-        if (test.length <= 8) {
-            current = test;
-        } else {
+        if (test.length <= 8) current = test;
+        else {
             if (current) lines.push(current);
             current = word;
         }
     }
-
     if (current) lines.push(current);
-
     return lines.slice(0, 3);
 }
 
@@ -1489,14 +1130,7 @@ function normalizeSectors(rawSectors = []) {
     }
 
     return rawSectors.map((item, index) => {
-        const label =
-            item.label ||
-            item.name ||
-            item.title ||
-            item.rewardLabel ||
-            item.reward ||
-            "Reward";
-
+        const label = item.label || item.name || item.title || item.rewardLabel || item.reward || "Reward";
         return {
             label: String(label),
             amount: item.amount ?? item.value ?? null,
@@ -1530,58 +1164,24 @@ function showToast(type = "info", title = "", message = "") {
     };
 
     const toast = document.createElement("div");
-    toast.style.cssText = `
-        pointer-events: auto;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 14px 16px;
-        border-radius: 18px;
-        background: rgba(20,26,40,.96);
-        color: #fff;
-        border: 1px solid rgba(255,255,255,.08);
-        box-shadow: 0 16px 36px rgba(0,0,0,.34);
-        animation: rewardToastIn .18s ease;
-    `;
-
+    toast.className = `toast toast-${type}`;
     toast.innerHTML = `
-        <div style="width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);flex-shrink:0;">
-            <i class="fa-solid ${icons[type] || icons.info}" style="color:${toastColor(type)};"></i>
+        <div class="toast-icon"><i class="fa-solid ${icons[type] || icons.info}"></i></div>
+        <div class="toast-content">
+            <div class="toast-title">${escapeHtml(title || "ALEXA")}</div>
+            <div class="toast-message">${escapeHtml(message || "")}</div>
         </div>
-        <div style="flex:1;min-width:0;">
-            <div style="font-weight:800;line-height:1.3;margin-bottom:2px;">${escapeHtml(title || "ALEXA")}</div>
-            <div style="font-size:13px;line-height:1.5;color:#a3afc2;">${escapeHtml(message || "")}</div>
-        </div>
-        <button type="button" aria-label="Close toast" style="
-            width:34px;height:34px;border:none;border-radius:12px;background:rgba(255,255,255,.05);color:#ffe8a3;cursor:pointer;flex-shrink:0;
-        ">
-            <i class="fa-solid fa-xmark"></i>
-        </button>
+        <button type="button" class="toast-close" aria-label="Close toast"><i class="fa-solid fa-xmark"></i></button>
     `;
 
-    const closeBtn = toast.querySelector("button");
+    const closeBtn = toast.querySelector(".toast-close");
     const removeToast = () => {
-        toast.style.animation = "rewardToastOut .18s ease forwards";
-        setTimeout(() => toast.remove(), 180);
+        toast.remove();
     };
 
     closeBtn?.addEventListener("click", removeToast);
     dom.toastContainer.appendChild(toast);
-
     setTimeout(removeToast, 4000);
-}
-
-function toastColor(type) {
-    switch (type) {
-        case "success":
-            return "#49E18D";
-        case "error":
-            return "#FF6B6B";
-        case "warning":
-            return "#FFB020";
-        default:
-            return "#D4AF37";
-    }
 }
 
 /* ==========================================================
@@ -1590,24 +1190,13 @@ function toastColor(type) {
 
 function showLoading(text = "Loading...") {
     state.loading = true;
-
-    if (dom.loadingOverlay) {
-        dom.loadingOverlay.hidden = false;
-    }
-
-    if (dom.loadingText) {
-        dom.loadingText.textContent = text;
-    }
-
+    if (dom.loadingOverlay) dom.loadingOverlay.hidden = false;
+    if (dom.loadingText) dom.loadingText.textContent = text;
     document.body.style.overflow = "hidden";
 }
 
 function hideLoading() {
     state.loading = false;
-
-    if (dom.loadingOverlay) {
-        dom.loadingOverlay.hidden = true;
-    }
-
+    if (dom.loadingOverlay) dom.loadingOverlay.hidden = true;
     document.body.style.overflow = "";
 }
