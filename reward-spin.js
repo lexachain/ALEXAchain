@@ -307,17 +307,6 @@ function ensureRuntimeNodes() {
         document.body.appendChild(dom.loadingOverlay);
         dom.loadingText = $("loadingText");
     }
-
-    if (!document.getElementById("rewardSpinInlineStyle")) {
-        const style = document.createElement("style");
-        style.id = "rewardSpinInlineStyle";
-        style.textContent = `
-            @keyframes rewardSpinLoader { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-            @keyframes rewardToastIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-            @keyframes rewardToastOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(8px); } }
-        `;
-        document.head.appendChild(style);
-    }
 }
 
 /* ==========================================================
@@ -556,7 +545,6 @@ function renderWheel() {
 }
 
 function renderIdentity() {
-    // Optional hooks if later you add username / UID / avatar on this page
     const nameNode = $("spinUsername");
     const uidNode = $("spinUid");
     const avatarNode = $("spinAvatar");
@@ -570,8 +558,7 @@ function renderIdentity() {
     }
 
     if (uidNode) {
-        uidNode.textContent =
-            `UID : ${state.profile?.uid || "-"}`;
+        uidNode.textContent = `UID : ${state.profile?.uid || "-"}`;
     }
 
     if (avatarNode && state.firebaseUser) {
@@ -624,7 +611,6 @@ function drawWheel() {
 
     ctx.clearRect(0, 0, size, size);
 
-    // Background halo
     const halo = ctx.createRadialGradient(center, center, 8, center, center, radius + 24);
     halo.addColorStop(0, "rgba(212,175,55,.18)");
     halo.addColorStop(1, "rgba(0,0,0,0)");
@@ -644,7 +630,6 @@ function drawWheel() {
         const end = start + sectorAngle;
         const mid = start + sectorAngle / 2;
 
-        // Wedge
         const gradient = ctx.createLinearGradient(
             center + Math.cos(mid) * 10,
             center + Math.sin(mid) * 10,
@@ -663,12 +648,10 @@ function drawWheel() {
         ctx.fillStyle = gradient;
         ctx.fill();
 
-        // Separator line
         ctx.strokeStyle = "rgba(255,255,255,.18)";
         ctx.lineWidth = 1.2;
         ctx.stroke();
 
-        // Label
         ctx.save();
         ctx.translate(center, center);
         ctx.rotate(mid);
@@ -691,7 +674,6 @@ function drawWheel() {
             let textX = labelRadius;
             let textY = startY + j * lineHeight;
 
-            // Flip text on the left side so it's readable
             const angleDeg = (mid * 180) / Math.PI;
             if (angleDeg > 90 && angleDeg < 270) {
                 ctx.rotate(Math.PI);
@@ -711,14 +693,12 @@ function drawWheel() {
         ctx.restore();
     }
 
-    // Outer ring
     ctx.beginPath();
     ctx.arc(center, center, radius + 2, 0, TAU);
     ctx.strokeStyle = "rgba(255,255,255,.25)";
     ctx.lineWidth = 6;
     ctx.stroke();
 
-    // Inner hub
     const hub = ctx.createRadialGradient(center, center, 4, center, center, 48);
     hub.addColorStop(0, "#FFF7D1");
     hub.addColorStop(0.45, "#D4AF37");
@@ -739,7 +719,6 @@ function drawWheel() {
     ctx.fillStyle = "#D4AF37";
     ctx.fill();
 
-    // Hub shine
     ctx.beginPath();
     ctx.arc(center - 8, center - 8, 6, 0, TAU);
     ctx.fillStyle = "rgba(255,255,255,.45)";
@@ -827,7 +806,6 @@ async function handleSpinClick() {
         showSpinResultModal(result);
         SpinFX.result(result);
 
-        // refresh silently so tasks/spins/history stay in sync with backend
         await refreshQuietly();
     } catch (error) {
         console.error(error);
@@ -891,10 +869,7 @@ async function handleExchangeSpin() {
     }
 
     const price = state.tasks.exchange?.price ?? SPIN_EXCHANGE_PRICE;
-    const accepted = window.confirm(
-        `Tukar ${formatLexa(price)} LEXA menjadi +1 spin?`
-    );
-
+    const accepted = window.confirm(`Tukar ${formatLexa(price)} LEXA menjadi +1 spin?`);
     if (!accepted) return;
 
     try {
@@ -1021,11 +996,22 @@ function renderHistoryList(items) {
 ========================================================== */
 
 function showSpinResultModal(result) {
+    const data = buildSpinResultData(result);
+
+    openRuntimeModal({
+        title: "🎉 CONGRATULATIONS 🎉",
+        width: 320,
+        showClose: false,
+        modalClass: "spin-result-modal",
+        bodyHtml: buildSpinResultBody(data),
+        footerHtml: buildSpinResultFooter()
+    });
+
+    bindSpinResultEvents();
+}
+
+function buildSpinResultData(result = {}) {
     const reward = result.reward || {};
-    const label = reward.label || reward.name || reward.reward || "Reward";
-    const amount = reward.amount != null
-        ? formatRewardAmount(reward.amount)
-        : (reward.value != null ? formatRewardAmount(reward.value) : "");
 
     const icon =
         reward.type === "mystery"
@@ -1034,78 +1020,120 @@ function showSpinResultModal(result) {
                 ? "💎"
                 : "🪙";
 
-    const message =
-        reward.description ||
-        result.message ||
-        "Your reward has been added.";
+    const label =
+        reward.label ||
+        reward.name ||
+        reward.reward ||
+        "Reward";
 
-    const ticketId = result.ticketId || result.spinId || "-";
-    const remaining = typeof result.remainingSpins === "number"
-        ? result.remainingSpins
-        : state.spins;
+    const subtitle =
+        reward.type === "jackpot"
+            ? "Jackpot Unlocked"
+            : reward.type === "mystery"
+                ? `${formatRewardAmount(reward.amount)} LEXA`
+                : "Reward Successfully Added";
 
-    openRuntimeModal({
-        title: "Congratulations",
-        width: 520,
-        bodyHtml: `
-            <div style="
-                display:flex;
-                flex-direction:column;
-                align-items:center;
-                gap:14px;
-                text-align:center;
-            ">
-                <div style="
-                    width:96px;
-                    height:96px;
-                    border-radius:50%;
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    background: radial-gradient(circle, rgba(212,175,55,.28), rgba(212,175,55,.06));
-                    border: 1px solid rgba(212,175,55,.25);
-                    box-shadow: 0 0 0 8px rgba(212,175,55,.05), 0 0 34px rgba(212,175,55,.2);
-                    font-size: 40px;
-                " class="spinfx-result-icon">${icon}</div>
+    return {
+        icon,
+        label,
+        subtitle,
+        ticketId: result.ticketId || result.spinId || "-",
+        remaining:
+            typeof result.remainingSpins === "number"
+                ? result.remainingSpins
+                : state.spins
+    };
+}
 
-                <div style="font-size:26px;font-weight:900;letter-spacing:-.4px;background:linear-gradient(180deg,#fff,#fff0b8,#D4AF37);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
-                    ${escapeHtml(label)}
-                </div>
-
-                ${
-                    amount
-                        ? `<div style="font-size:20px;font-weight:800;color:#fff;">${escapeHtml(amount)} LEXA</div>`
-                        : ``
-                }
-
-                <div style="color:#a3afc2;font-size:14px;line-height:1.8;max-width: 32ch;">
-                    ${escapeHtml(message)}
-                </div>
-
-                <div class="spinfx-ticket-card" style="
-                    width:100%;
-                    margin-top:6px;
-                    padding:16px;
-                    border-radius:18px;
-                    background: rgba(255,255,255,.04);
-                    border:1px solid rgba(255,255,255,.06);
-                ">
-                    <div style="font-size:12px;color:#ffe8a3;letter-spacing:1px;text-transform:uppercase;">Ticket ID</div>
-                    <div style="margin-top:6px;font-weight:800;color:#fff;word-break:break-word;">${escapeHtml(ticketId)}</div>
-                </div>
-
-                <div style="color:#a3afc2;font-size:13px;">
-                    Remaining Spins: <strong style="color:#fff;">${escapeHtml(String(remaining))}</strong>
-                </div>
+function buildSpinResultBody(data) {
+    return `
+        <div class="spin-result">
+            <div class="spin-result-icon">
+                ${data.icon}
             </div>
-        `,
-        footerHtml: `
-            <button class="runtime-primary" data-close-modal>
-                Awesome
-            </button>
-        `
-    });
 
+            <div class="spin-result-label">
+                ${escapeHtml(data.label)}
+            </div>
+
+            <div class="spin-result-subtitle">
+                ${escapeHtml(data.subtitle)}
+            </div>
+
+            <div class="spin-ticket">
+                <small>Ticket ID</small>
+                <strong>${escapeHtml(data.ticketId)}</strong>
+            </div>
+
+            <div class="spin-remaining">
+                <small>🎡 Remaining Spins</small>
+                <strong>${data.remaining}</strong>
+            </div>
+        </div>
+    `;
+}
+
+function buildSpinResultFooter() {
+    return `
+        <button class="runtime-primary" data-close-modal>
+            Collect
+        </button>
+    `;
+}
+
+function bindSpinResultEvents() {
+    dom.runtimeHost
+        ?.querySelectorAll("[data-close-modal]")
+        .forEach((btn) => {
+            btn.addEventListener("click", closeRuntimeModal);
+        });
+}
+
+function openExchangeModal(price, rewardSpins) {
+    return new Promise((resolve) => {
+        openRuntimeModal({
+            title: "🪙 Exchange Spin",
+            width: 500,
+            bodyHtml: `
+                <div style="text-align:center">
+                    <div style="font-size:48px;margin-bottom:16px;">🎡</div>
+                    <div style="font-size:18px;font-weight:700;color:#fff;">
+                        Exchange Pending LEXA
+                    </div>
+                    <div style="margin-top:20px;padding:18px;border-radius:18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);">
+                        <div style="font-size:28px;font-weight:800;color:#D4AF37;">
+                            ${formatLexa(price)} LEXA
+                        </div>
+                        <div style="margin:10px 0;font-size:28px;color:#999;">↓</div>
+                        <div style="font-size:28px;font-weight:800;color:#49E18D;">
+                            +${rewardSpins} SPIN
+                        </div>
+                    </div>
+                    <p style="margin-top:18px;color:#a3afc2;line-height:1.6;">
+                        Convert Pending LEXA into Lucky Spin?
+                    </p>
+                </div>
+            `,
+            footerHtml: `
+                <button class="runtime-secondary" id="exchangeCancel">Cancel</button>
+                <button class="runtime-primary" id="exchangeConfirm">Exchange</button>
+            `
+        });
+
+        document
+            .getElementById("exchangeCancel")
+            ?.addEventListener("click", () => {
+                closeRuntimeModal();
+                resolve(false);
+            });
+
+        document
+            .getElementById("exchangeConfirm")
+            ?.addEventListener("click", () => {
+                closeRuntimeModal();
+                resolve(true);
+            });
+    });
 }
 
 /* ==========================================================
@@ -1121,33 +1149,15 @@ function openNoSpinModal() {
                 <div style="color:#a3afc2;line-height:1.8;font-size:14px;">
                     Kamu belum punya spin. Selesaikan task berikut untuk menambah spin.
                 </div>
-
-                <div style="
-                    padding:14px 16px;
-                    border-radius:18px;
-                    background: rgba(255,255,255,.04);
-                    border: 1px solid rgba(255,255,255,.06);
-                ">
+                <div style="padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);">
                     <div style="font-weight:800;color:#fff;">👥 Referral Task</div>
                     <div style="margin-top:4px;color:#a3afc2;font-size:13px;">2 referral aktif = +1 spin</div>
                 </div>
-
-                <div style="
-                    padding:14px 16px;
-                    border-radius:18px;
-                    background: rgba(255,255,255,.04);
-                    border: 1px solid rgba(255,255,255,.06);
-                ">
+                <div style="padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);">
                     <div style="font-weight:800;color:#fff;">📅 Daily Check-in</div>
                     <div style="margin-top:4px;color:#a3afc2;font-size:13px;">Check-in berturut-turut = +1 spin</div>
                 </div>
-
-                <div style="
-                    padding:14px 16px;
-                    border-radius:18px;
-                    background: rgba(255,255,255,.04);
-                    border: 1px solid rgba(255,255,255,.06);
-                ">
+                <div style="padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);">
                     <div style="font-weight:800;color:#fff;">🪙 Exchange</div>
                     <div style="margin-top:4px;color:#a3afc2;font-size:13px;">0.1 LEXA = +1 spin</div>
                 </div>
@@ -1180,66 +1190,47 @@ function openNoSpinModal() {
    RUNTIME MODAL
 ========================================================== */
 
-function openRuntimeModal({ title, bodyHtml, footerHtml = "", width = 520 }) {
+function openRuntimeModal({
+    title,
+    bodyHtml,
+    footerHtml = "",
+    width = 520,
+    showClose = true,
+    modalClass = ""
+}) {
     if (!dom.runtimeHost) return;
 
     dom.runtimeHost.hidden = false;
     dom.runtimeHost.innerHTML = `
-        <div class="rewardspin-backdrop" style="
-            position: fixed;
-            inset: 0;
-            z-index: 999998;
-            background: rgba(0,0,0,.62);
-            backdrop-filter: blur(12px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 16px;
-        ">
-            <div class="rewardspin-modal" style="
-                width: min(100%, ${width}px);
-                max-height: 88vh;
-                overflow: auto;
-                border-radius: 24px;
-                background: linear-gradient(180deg, rgba(22,31,49,.99), rgba(10,16,28,.99));
-                border: 1px solid rgba(255,255,255,.08);
-                box-shadow: 0 22px 60px rgba(0,0,0,.42);
-                padding: 18px;
-                animation: modalPop .22s ease;
-            ">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
-                    <div style="font-size:20px;font-weight:900;letter-spacing:-.3px;background:linear-gradient(180deg,#fff,#fff0b8,#D4AF37);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
-                        ${escapeHtml(title)}
-                    </div>
-                    <button data-close-modal type="button" style="
-                        width:40px;height:40px;border:none;border-radius:14px;
-                        background: rgba(255,255,255,.06);
-                        color:#ffe8a3;cursor:pointer;
-                        border:1px solid rgba(255,255,255,.08);
-                    ">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
+        <div class="rewardspin-backdrop">
+            <div class="rewardspin-modal ${modalClass}" style="width:min(100%,${width}px);">
+                <div class="rewardspin-header">
+                    <h2>${escapeHtml(title)}</h2>
+                    ${showClose ? `
+                        <button type="button" class="runtime-close" data-close-modal>
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    ` : ""}
                 </div>
 
-                <div class="rewardspin-modal-body">
+                <div class="rewardspin-body">
                     ${bodyHtml}
                 </div>
 
-                <div class="rewardspin-modal-footer" style="
-                    margin-top: 16px;
-                    display:flex;
-                    gap:12px;
-                    flex-wrap:wrap;
-                    justify-content:flex-end;
-                ">
-                    ${footerHtml}
-                </div>
+                ${footerHtml ? `
+                    <div class="rewardspin-footer">
+                        ${footerHtml}
+                    </div>
+                ` : ""}
             </div>
         </div>
     `;
 
-    const closeBtn = dom.runtimeHost.querySelector("[data-close-modal]");
-    closeBtn?.addEventListener("click", closeRuntimeModal);
+    dom.runtimeHost
+        .querySelectorAll("[data-close-modal]")
+        .forEach((btn) => {
+            btn.addEventListener("click", closeRuntimeModal);
+        });
 
     const backdrop = dom.runtimeHost.querySelector(".rewardspin-backdrop");
     backdrop?.addEventListener("click", (e) => {
