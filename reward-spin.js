@@ -17,7 +17,7 @@ import {
     getDocs
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
-import { SpinFX } from "./js/reward-spin-fx.js";
+import { SpinFX } from "./reward-spin-fx.js";
 
 /* ==========================================================
    CONFIG
@@ -25,15 +25,15 @@ import { SpinFX } from "./js/reward-spin-fx.js";
 
 const LOGIN_PAGE = "login.html";
 const INVITE_PAGE = "invite.html";
-const DAILY_PAGE = "daily.html";
+const DAILY_PAGE = "calendar.html";
 
 const API_BASE =
     window.ALEXA_SPIN_API_BASE ||
     "https://alexachain.lexanet-chain.workers.dev";
 
 const APP_VERSION = "v1.0.0";
-const SPIN_EXCHANGE_PRICE = 0.1;
-const SPIN_ANIMATION_MS = 5200;
+const SPIN_EXCHANGE_PRICE = 0.7;
+const SPIN_ANIMATION_MS =  7000;
 const SPIN_FULL_TURNS = 6;
 const TAU = Math.PI * 2;
 
@@ -48,16 +48,16 @@ const DEFAULT_WHEEL_SECTORS = [
 ];
 
 const DEFAULT_TASKS = {
-    referral: { current: 0, target: 2, rewardSpins: 1 },
-    daily: { current: 0, target: 7, rewardSpins: 1 },
+    referral: { current: 0, target: 2, rewardSpins: 3 },
+    daily: { current: 0, target: 7, rewardSpins: 7 },
     exchange: { price: SPIN_EXCHANGE_PRICE, rewardSpins: 1 }
 };
 
 const DEFAULT_RULES = [
     "New users get 1 welcome spin.",
-    "Every 2 successful referrals earn +1 spin.",
-    "Daily check-in can earn +1 spin.",
-    "Exchange 0.1 LEXA for +1 spin.",
+    "Every 2 successful referrals earn +3 spin.",
+    "Daily check-in can earn +7 spin.",
+    "Exchange 0.7 LEXA for +1 spin.",
     "Rewards are determined by the server."
 ];
 
@@ -463,113 +463,524 @@ function drawWheel() {
     const center = size / 2;
     const radius = Math.min(center - 10, 170);
 
-    ctx.clearRect(0, 0, size, size);
-
-    const halo = ctx.createRadialGradient(center, center, 8, center, center, radius + 24);
-    halo.addColorStop(0, "rgba(212,175,55,.18)");
-    halo.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = halo;
-    ctx.beginPath();
-    ctx.arc(center, center, radius + 20, 0, TAU);
-    ctx.fill();
-
     const sectors = state.wheelSectors.length ? state.wheelSectors : DEFAULT_WHEEL_SECTORS;
     const sectorAngle = TAU / sectors.length;
     const startBase = state.wheelRotation - Math.PI / 2;
 
+    ctx.clearRect(0, 0, size, size);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
+    /* ======================================================
+       OUTER AURA / SOFT GLOW
+    ====================================================== */
+
+    const aura = ctx.createRadialGradient(
+        center,
+        center,
+        radius * 0.35,
+        center,
+        center,
+        radius + 42
+    );
+    aura.addColorStop(0.00, "rgba(212,175,55,.18)");
+    aura.addColorStop(0.42, "rgba(212,175,55,.10)");
+    aura.addColorStop(0.70, "rgba(24,195,126,.08)");
+    aura.addColorStop(1.00, "rgba(0,0,0,0)");
+
+    ctx.beginPath();
+    ctx.arc(center, center, radius + 30, 0, TAU);
+    ctx.fillStyle = aura;
+    ctx.fill();
+
+    /* ======================================================
+       BASE DARK DISC BEHIND SECTORS
+    ====================================================== */
+
+    ctx.beginPath();
+    ctx.arc(center, center, radius + 18, 0, TAU);
+    ctx.fillStyle = "#05070B";
+    ctx.fill();
+
+    /* ======================================================
+       SECTORS
+    ====================================================== */
+
     for (let i = 0; i < sectors.length; i++) {
         const sector = sectors[i];
+        const label = String(sector.label || "");
+        const key = label.toLowerCase();
+
         const start = startBase + i * sectorAngle;
         const end = start + sectorAngle;
         const mid = start + sectorAngle / 2;
 
-        const gradient = ctx.createLinearGradient(
-            center + Math.cos(mid) * 10,
-            center + Math.sin(mid) * 10,
+        let sectorMode = "dark";
+        if (key === "70 lexa" || key === "0.05 lexa") {
+            sectorMode = "gold";
+        } else if (key === "1.5 lexa" || key === "7 lexa") {
+            sectorMode = "emerald";
+        } else if (key === "mystery box") {
+            sectorMode = "mystery";
+        } else if (key === "5 lexa") {
+            sectorMode = "violet";
+        } else if (key === "0.50 lexa") {
+            sectorMode = "darkGold";
+        }
+
+        let colors;
+        switch (sectorMode) {
+            case "gold":
+                colors = ["#FFF7D8", "#F1D96D", "#D4AF37", "#9A7414", "#4D3507"];
+                break;
+            case "emerald":
+                colors = ["#7AFFC2", "#38E2A0", "#18C37E", "#0F6E49", "#083622"];
+                break;
+            case "mystery":
+                colors = ["#31517D", "#243A5B", "#18283E", "#0F1725", "#070B10"];
+                break;
+            case "violet":
+                colors = ["#8D79FF", "#6F5CFF", "#5746F0", "#2B215F", "#11101C"];
+                break;
+            case "darkGold":
+                colors = ["#3B414A", "#2E343C", "#1E2329", "#111419", "#090B0D"];
+                break;
+            default:
+                colors = ["#3A414A", "#2B3139", "#1D222A", "#111419", "#090B0D"];
+                break;
+        }
+
+        const metal = ctx.createLinearGradient(
+            center + Math.cos(mid) * 8,
+            center + Math.sin(mid) * 8,
             center + Math.cos(mid) * radius,
             center + Math.sin(mid) * radius
         );
-
-        const baseColor = sector.color || pickSectorColor(i);
-        gradient.addColorStop(0, lightenColor(baseColor, 18));
-        gradient.addColorStop(1, darkenColor(baseColor, 14));
+        metal.addColorStop(0.00, colors[0]);
+        metal.addColorStop(0.22, colors[1]);
+        metal.addColorStop(0.52, colors[2]);
+        metal.addColorStop(0.78, colors[3]);
+        metal.addColorStop(1.00, colors[4]);
 
         ctx.beginPath();
         ctx.moveTo(center, center);
         ctx.arc(center, center, radius, start, end);
         ctx.closePath();
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = metal;
         ctx.fill();
 
-        ctx.strokeStyle = "rgba(255,255,255,.18)";
-        ctx.lineWidth = 3.2;
+        /* ==================================================
+           BEVEL / DEPTH
+        ================================================== */
+
+        ctx.save();
+        ctx.clip();
+
+        const bevel = ctx.createRadialGradient(
+            center,
+            center,
+            radius * 0.10,
+            center,
+            center,
+            radius
+        );
+        bevel.addColorStop(0.00, "rgba(255,255,255,.10)");
+        bevel.addColorStop(0.32, "rgba(255,255,255,.04)");
+        bevel.addColorStop(0.72, "rgba(0,0,0,.12)");
+        bevel.addColorStop(1.00, "rgba(0,0,0,.28)");
+
+        ctx.fillStyle = bevel;
+        ctx.fillRect(center - radius, center - radius, radius * 2, radius * 2);
+
+        const sheen = ctx.createLinearGradient(
+            center - radius,
+            center - radius,
+            center + radius,
+            center + radius
+        );
+        sheen.addColorStop(0.00, "rgba(255,255,255,.18)");
+        sheen.addColorStop(0.20, "rgba(255,255,255,.08)");
+        sheen.addColorStop(0.44, "rgba(255,255,255,.02)");
+        sheen.addColorStop(0.70, "rgba(0,0,0,.02)");
+        sheen.addColorStop(1.00, "rgba(0,0,0,.12)");
+
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = sheen;
+        ctx.fillRect(center - radius, center - radius, radius * 2, radius * 2);
+
+        const vignette = ctx.createRadialGradient(
+            center,
+            center,
+            radius * 0.12,
+            center,
+            center,
+            radius
+        );
+        vignette.addColorStop(0.00, "rgba(0,0,0,0)");
+        vignette.addColorStop(0.70, "rgba(0,0,0,.08)");
+        vignette.addColorStop(1.00, "rgba(0,0,0,.24)");
+
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = vignette;
+        ctx.fillRect(center - radius, center - radius, radius * 2, radius * 2);
+
+        ctx.restore();
+
+        /* ==================================================
+           THICK DIVIDER / METAL EDGE
+        ================================================== */
+
+        const divider = ctx.createLinearGradient(
+            center - Math.cos(mid) * radius,
+            center - Math.sin(mid) * radius,
+            center + Math.cos(mid) * radius,
+            center + Math.sin(mid) * radius
+        );
+        divider.addColorStop(0.00, "#FFF8D8");
+        divider.addColorStop(0.25, "#D4AF37");
+        divider.addColorStop(0.56, "#24C77A");
+        divider.addColorStop(1.00, "#0F6E49");
+
+        ctx.beginPath();
+        ctx.moveTo(center, center);
+        ctx.arc(center, center, radius, start, end);
+        ctx.closePath();
+
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = divider;
+        ctx.shadowColor = "rgba(212,175,55,.42)";
+        ctx.shadowBlur = 7;
         ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "rgba(255,255,255,.10)";
+        ctx.stroke();
+
+        /* ==================================================
+           SMALL INNER BORDER
+        ================================================== */
+
+        ctx.beginPath();
+        ctx.arc(center, center, radius - 1.5, start, end);
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = "rgba(255,245,210,.10)";
+        ctx.stroke();
+
+        /* ==================================================
+           SECTOR BADGE / JEWEL
+        ================================================== */
+
+        const badgeDist = radius - 68;
+        const bx = center + Math.cos(mid) * badgeDist;
+        const by = center + Math.sin(mid) * badgeDist;
+
+        let badgeColors;
+        if (sectorMode === "gold") {
+            badgeColors = ["#FFF9DD", "#F3D86D", "#D4AF37", "#8A6510"];
+        } else if (sectorMode === "emerald") {
+            badgeColors = ["#CFFBE0", "#49E18D", "#18C37E", "#0E6A45"];
+        } else if (sectorMode === "mystery") {
+            badgeColors = ["#9BC2FF", "#60A5FA", "#3B82F6", "#18315C"];
+        } else if (sectorMode === "violet") {
+            badgeColors = ["#D6CCFF", "#A78BFA", "#8B5CF6", "#3B2675"];
+        } else {
+            badgeColors = ["#F4E3A4", "#D4AF37", "#B98A17", "#6B4A0B"];
+        }
+
+        const badge = ctx.createRadialGradient(bx - 2, by - 2, 1, bx, by, 9);
+        badge.addColorStop(0.00, badgeColors[0]);
+        badge.addColorStop(0.35, badgeColors[1]);
+        badge.addColorStop(0.72, badgeColors[2]);
+        badge.addColorStop(1.00, badgeColors[3]);
+
+        ctx.beginPath();
+        ctx.arc(bx, by, 5.5, 0, TAU);
+        ctx.fillStyle = badge;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(bx - 1.2, by - 1.2, 1.9, 0, TAU);
+        ctx.fillStyle = "rgba(255,255,255,.45)";
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(bx + 0.8, by + 0.8, 5.5, 0, TAU);
+        ctx.strokeStyle = "rgba(0,0,0,.28)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        /* ==================================================
+           LABEL
+        ================================================== */
 
         ctx.save();
         ctx.translate(center, center);
         ctx.rotate(mid);
 
-        const lines = wrapWheelLabel(sector.label);
-        ctx.textAlign = "right";
+        const lines = wrapWheelLabel(label);
+
         ctx.textBaseline = "middle";
         ctx.font = "700 15px Poppins, sans-serif";
-        ctx.fillStyle = "#FFF8E4";
-        ctx.shadowColor = "rgba(0,0,0,.25)";
-        ctx.shadowBlur = 4;
 
-        const labelRadius = radius - 26;
-        const lineHeight = 18;
-        const lineCount = lines.length;
-        const startY = ((lineCount - 1) * lineHeight) / -2;
-
-        for (let j = 0; j < lines.length; j++) {
-            const text = lines[j];
-            let textX = labelRadius;
-            let textY = startY + j * lineHeight;
-            const angleDeg = (mid * 180) / Math.PI;
-            if (angleDeg > 90 && angleDeg < 270) {
-                ctx.rotate(Math.PI);
-                textX = -labelRadius;
-                ctx.textAlign = "left";
-            }
-            ctx.fillText(text, textX, textY);
-            ctx.setTransform(Math.max(1, window.devicePixelRatio || 1), 0, 0, Math.max(1, window.devicePixelRatio || 1), 0, 0);
-            ctx.translate(center, center);
-            ctx.rotate(mid);
+        let textColor = "#FFF7E6";
+        switch (key) {
+            case "0.05 lexa":
+                textColor = "#FFFFFF";
+                break;
+            case "0.50 lexa":
+                textColor = "#F8E9A1";
+                break;
+            case "1.5 lexa":
+                textColor = "#49E18D";
+                break;
+            case "5 lexa":
+                textColor = "#8B5CF6";
+                break;
+            case "7 lexa":
+                textColor = "#38BDF8";
+                break;
+            case "mystery box":
+                textColor = "#86B8FF";
+                break;
+            case "70 lexa":
+                textColor = "#FFD86A";
+                break;
         }
 
+        const angleDeg = ((mid * 180 / Math.PI) + 360) % 360;
+        const flipped = angleDeg > 90 && angleDeg < 270;
+
+        ctx.textAlign = flipped ? "left" : "right";
+
+        const textRadius = radius - 28;
+        const drawX = flipped ? -textRadius : textRadius;
+        const lineHeight = 18;
+        const startY = -((lines.length - 1) * lineHeight) / 2;
+
+        ctx.fillStyle = textColor;
+        ctx.shadowColor = "rgba(0,0,0,.58)";
+        ctx.shadowBlur = 7;
+
+        for (let j = 0; j < lines.length; j++) {
+            ctx.fillText(lines[j], drawX, startY + j * lineHeight);
+        }
+
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = "#FFF6CC";
+
+        for (let j = 0; j < lines.length; j++) {
+            ctx.fillText(lines[j], drawX, startY + j * lineHeight - 1);
+        }
+
+        ctx.globalAlpha = 1;
         ctx.restore();
+
+        /* ==================================================
+           OUTER BOUNDARY STUDS ON EACH DIVIDER
+        ================================================== */
+
+        const studAngle = start;
+        const studX = center + Math.cos(studAngle) * (radius + 13);
+        const studY = center + Math.sin(studAngle) * (radius + 13);
+
+        const stud = ctx.createRadialGradient(
+            studX - 2,
+            studY - 2,
+            1,
+            studX,
+            studY,
+            10
+        );
+        if (i % 2 === 0) {
+            stud.addColorStop(0.00, "#FFF9DD");
+            stud.addColorStop(0.30, "#F2D66F");
+            stud.addColorStop(0.68, "#D4AF37");
+            stud.addColorStop(1.00, "#8A6510");
+        } else {
+            stud.addColorStop(0.00, "#D7FFE8");
+            stud.addColorStop(0.30, "#49E18D");
+            stud.addColorStop(0.68, "#18C37E");
+            stud.addColorStop(1.00, "#0E6A45");
+        }
+
+        ctx.beginPath();
+        ctx.arc(studX, studY, 5.8, 0, TAU);
+        ctx.fillStyle = stud;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(studX - 1.2, studY - 1.2, 1.8, 0, TAU);
+        ctx.fillStyle = "rgba(255,255,255,.40)";
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(studX + 0.8, studY + 0.8, 5.8, 0, TAU);
+        ctx.strokeStyle = "rgba(0,0,0,.30)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
     }
 
+    /* ======================================================
+       OUTER RINGS
+    ====================================================== */
+
+    const outerRing = ctx.createLinearGradient(
+        center - radius,
+        center - radius,
+        center + radius,
+        center + radius
+    );
+    outerRing.addColorStop(0.00, "#FFF8D8");
+    outerRing.addColorStop(0.16, "#F3D978");
+    outerRing.addColorStop(0.35, "#D4AF37");
+    outerRing.addColorStop(0.56, "#A97A13");
+    outerRing.addColorStop(0.76, "#2ACB82");
+    outerRing.addColorStop(1.00, "#4C3507");
+
     ctx.beginPath();
-    ctx.arc(center, center, radius + 2, 0, TAU);
-    ctx.strokeStyle = "rgba(255,255,255,.25)";
+    ctx.arc(center, center, radius + 14, 0, TAU);
+    ctx.strokeStyle = outerRing;
     ctx.lineWidth = 14;
+    ctx.shadowColor = "rgba(212,175,55,.52)";
+    ctx.shadowBlur = 12;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    const darkRing = ctx.createLinearGradient(
+        center - radius,
+        center - radius,
+        center + radius,
+        center + radius
+    );
+    darkRing.addColorStop(0.00, "#171A20");
+    darkRing.addColorStop(0.35, "#0F1216");
+    darkRing.addColorStop(1.00, "#05070B");
+
+    ctx.beginPath();
+    ctx.arc(center, center, radius + 22, 0, TAU);
+    ctx.strokeStyle = darkRing;
+    ctx.lineWidth = 8;
     ctx.stroke();
 
-    const hub = ctx.createRadialGradient(center, center, 4, center, center, 48);
-    hub.addColorStop(0, "#FFF7D1");
-    hub.addColorStop(0.45, "#D4AF37");
-    hub.addColorStop(1, "#8A6510");
+    const emeraldRing = ctx.createLinearGradient(
+        center - radius,
+        center - radius,
+        center + radius,
+        center + radius
+    );
+    emeraldRing.addColorStop(0.00, "rgba(24,195,126,.10)");
+    emeraldRing.addColorStop(0.40, "rgba(24,195,126,.42)");
+    emeraldRing.addColorStop(0.75, "rgba(24,195,126,.16)");
+    emeraldRing.addColorStop(1.00, "rgba(24,195,126,.08)");
 
     ctx.beginPath();
-    ctx.arc(center, center, 34, 0, TAU);
-    ctx.fillStyle = hub;
+    ctx.arc(center, center, radius + 9, 0, TAU);
+    ctx.strokeStyle = emeraldRing;
+    ctx.lineWidth = 4;
+    ctx.shadowColor = "rgba(24,195,126,.28)";
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.beginPath();
+    ctx.arc(center, center, radius + 3, 0, TAU);
+    ctx.strokeStyle = "rgba(255,246,210,.75)";
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+
+    /* ======================================================
+       CENTER HUB
+    ====================================================== */
+
+    const hubGold = ctx.createRadialGradient(
+        center,
+        center,
+        4,
+        center,
+        center,
+        46
+    );
+    hubGold.addColorStop(0.00, "#FFF9E0");
+    hubGold.addColorStop(0.16, "#F5E0A0");
+    hubGold.addColorStop(0.42, "#D4AF37");
+    hubGold.addColorStop(0.70, "#A97A13");
+    hubGold.addColorStop(1.00, "#5A410A");
+
+    ctx.beginPath();
+    ctx.arc(center, center, 36, 0, TAU);
+    ctx.fillStyle = hubGold;
+    ctx.fill();
+
+    const hubShade = ctx.createRadialGradient(
+        center - 8,
+        center - 8,
+        2,
+        center,
+        center,
+        24
+    );
+    hubShade.addColorStop(0.00, "#2F343B");
+    hubShade.addColorStop(0.45, "#171B20");
+    hubShade.addColorStop(1.00, "#090B0D");
+
+    ctx.beginPath();
+    ctx.arc(center, center, 23, 0, TAU);
+    ctx.fillStyle = hubShade;
+    ctx.fill();
+
+    const hubCap = ctx.createRadialGradient(
+        center - 4,
+        center - 4,
+        1,
+        center,
+        center,
+        11
+    );
+    hubCap.addColorStop(0.00, "#FFF8D8");
+    hubCap.addColorStop(0.38, "#F2D66F");
+    hubCap.addColorStop(0.72, "#D4AF37");
+    hubCap.addColorStop(1.00, "#8A6510");
+
+    ctx.beginPath();
+    ctx.arc(center, center, 10, 0, TAU);
+    ctx.fillStyle = hubCap;
+    ctx.fill();
+
+    const hubGem = ctx.createRadialGradient(
+        center - 2,
+        center - 2,
+        1,
+        center,
+        center,
+        7
+    );
+    hubGem.addColorStop(0.00, "#D7FFE8");
+    hubGem.addColorStop(0.35, "#49E18D");
+    hubGem.addColorStop(0.72, "#18C37E");
+    hubGem.addColorStop(1.00, "#0E6A45");
+
+    ctx.beginPath();
+    ctx.arc(center + 12, center - 12, 4.5, 0, TAU);
+    ctx.fillStyle = hubGem;
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(center, center, 22, 0, TAU);
-    ctx.fillStyle = "rgba(10,16,28,.85)";
+    ctx.arc(center - 10, center - 10, 6, 0, TAU);
+    ctx.fillStyle = "rgba(255,255,255,.48)";
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(center, center, 9, 0, TAU);
-    ctx.fillStyle = "#D4AF37";
+    ctx.arc(center + 8, center + 8, 5, 0, TAU);
+    ctx.fillStyle = "rgba(0,0,0,.18)";
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(center - 8, center - 8, 6, 0, TAU);
-    ctx.fillStyle = "rgba(255,255,255,.45)";
+    ctx.arc(center, center, 4.2, 0, TAU);
+    ctx.fillStyle = "#FFF6D0";
     ctx.fill();
 }
 
@@ -597,14 +1008,21 @@ async function animateWheelToSector(index) {
         duration: SPIN_ANIMATION_MS,
         sectorCount: state.wheelSectors.length,
         onFrame: (t) => {
-            const eased = easeOutCubic(t);
+            const eased = naturalSpinEase(t);
             state.wheelRotation = start + (end - start) * eased;
             drawWheel();
         }
     });
+const settle = end + 0.01;
 
-    state.wheelRotation = end;
-    drawWheel();
+state.wheelRotation = settle;
+drawWheel();
+
+await new Promise(r => setTimeout(r, 35));
+
+state.wheelRotation = end;
+drawWheel();
+
 }
 
 /* ==========================================================
@@ -703,8 +1121,13 @@ async function handleExchangeSpin() {
     }
 
     const price = state.tasks.exchange?.price ?? SPIN_EXCHANGE_PRICE;
-    const accepted = window.confirm(`Tukar ${formatLexa(price)} LEXA menjadi +1 spin?`);
-    if (!accepted) return;
+
+const accepted = await openExchangeModal(
+    price,
+    state.tasks.exchange.rewardSpins
+);
+
+if (!accepted) return;
 
     try {
         const token = await getIdToken();
@@ -847,21 +1270,72 @@ function openExchangeModal(price, rewardSpins) {
             title: "🪙 Exchange Spin",
             width: 500,
             bodyHtml: `
-                <div class="exchange-modal">
-                    <div class="exchange-emoji">🎡</div>
-                    <div class="exchange-title">Exchange Pending LEXA</div>
-                    <div class="exchange-card">
-                        <div class="exchange-amount">${formatLexa(price)} LEXA</div>
-                        <div class="exchange-arrow">↓</div>
-                        <div class="exchange-result">+${rewardSpins} SPIN</div>
-                    </div>
-                    <p class="exchange-copy">Convert Pending LEXA into Lucky Spin?</p>
-                </div>
-            `,
+<div class="exchange-modal">
+
+    <div class="exchange-emoji">
+        🪙
+    </div>
+
+    <div class="exchange-title">
+        Exchange Spin
+    </div>
+
+    <div class="exchange-card">
+
+        <div class="exchange-row">
+            <span class="exchange-label">
+                You Pay
+            </span>
+
+            <span class="exchange-value">
+                ${formatLexa(price)} LEXA
+            </span>
+        </div>
+
+        <div class="exchange-arrow">
+            ↓
+        </div>
+
+        <div class="exchange-row">
+            <span class="exchange-label">
+                You Receive
+            </span>
+
+            <span class="exchange-result">
+                +${rewardSpins} Spin
+            </span>
+        </div>
+
+    </div>
+
+    <div class="exchange-copy">
+        You're about to exchange
+        <strong>${formatLexa(price)} LEXA</strong>
+        for
+        <strong>+${rewardSpins} Spin</strong>.
+        <br><br>
+        This action cannot be undone.
+    </div>
+
+</div>
+`,
             footerHtml: `
-                <button class="runtime-secondary" id="exchangeCancel">Cancel</button>
-                <button class="runtime-primary" id="exchangeConfirm">Exchange</button>
-            `
+<button
+class="runtime-secondary"
+id="exchangeCancel">
+
+    Cancel
+
+</button>
+
+<button
+class="runtime-primary"
+id="exchangeConfirm">
+
+    Confirm Exchange
+
+</button>
+`
         });
 
         document.getElementById("exchangeCancel")?.addEventListener("click", () => {
@@ -882,13 +1356,13 @@ function openExchangeModal(price, rewardSpins) {
 function openNoSpinModal() {
     openRuntimeModal({
         title: "No Spins",
-        width: 520,
+        width: 420,
         bodyHtml: `
             <div class="no-spin-modal">
                 <div class="no-spin-copy">Kamu belum punya spin. Selesaikan task berikut untuk menambah spin.</div>
-                <div class="no-spin-card"><div class="no-spin-head">👥 Referral Task</div><div class="no-spin-sub">2 referral aktif = +1 spin</div></div>
-                <div class="no-spin-card"><div class="no-spin-head">📅 Daily Check-in</div><div class="no-spin-sub">Check-in berturut-turut = +1 spin</div></div>
-                <div class="no-spin-card"><div class="no-spin-head">🪙 Exchange</div><div class="no-spin-sub">0.1 LEXA = +1 spin</div></div>
+                <div class="no-spin-card"><div class="no-spin-head">👥 Referral Task</div><div class="no-spin-sub">2 referral aktif = +3 spin</div></div>
+                <div class="no-spin-card"><div class="no-spin-head">📅 Daily Check-in</div><div class="no-spin-sub">Check-in berturut-turut = +7 spin</div></div>
+                <div class="no-spin-card"><div class="no-spin-head">🪙 Exchange</div><div class="no-spin-sub">0.7 LEXA = +1 spin</div></div>
             </div>
         `,
         footerHtml: `
@@ -1066,8 +1540,20 @@ function formatDateTime(value) {
     return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
 }
 
-function easeOutCubic(t) {
-    return 1 - Math.pow(1 - t, 3);
+function naturalSpinEase(t) {
+
+    // 3 detik pertama (≈43% dari 7 detik)
+    if (t <= 0.43) {
+        return t * 1.15;
+    }
+
+    // 4 detik terakhir
+    const x = (t - 0.43) / 0.57;
+
+    return (
+        0.495 +
+        (1 - Math.pow(1 - x, 4)) * 0.505
+    );
 }
 
 function observeResize() {
